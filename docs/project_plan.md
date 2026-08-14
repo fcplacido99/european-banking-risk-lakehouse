@@ -30,7 +30,7 @@ Goal: publish a safe, documentation-first GitHub repository.
 | W1.1 | **FINISHED** | 1h | Freeze the 2024 vertical slice in Decision 001. | VS Code; implementation guide | Accepted record contains the business question, five-file scope, hashes, KPI set, exclusions, and non-goals. |
 | W1.2 | **FINISHED** | 1h | Select Python 3.12 and create `.venv` in the repository. | Python launcher; PowerShell; `venv` | `.venv/pyvenv.cfg` records Python 3.12.10; activation, Python, and pip files exist; terminal execution confirmed by the project owner. |
 | W1.3 | **FINISHED** | 1.5h | Create the safe repository skeleton. | VS Code; PowerShell | Required directories and documentation placeholders exist; repository audit found zero CSV/XLSX/PDF data files; raw year folders remain outside the repository. |
-| W1.4 | **NOT STARTED** | 1h | Add exclusions, initialize Git, audit, and make the first commit. | Git; PowerShell | Clean status; no raw EBA data, secret, or generated output is tracked. |
+| W1.4 | **FINISHED** | 1h | Add exclusions, initialize Git, audit, and make the first commit. | Git; PowerShell | Commit 94881ae; clean working tree; 15 audited files tracked; no raw EBA files, secrets, generated outputs, or virtual environment tracked.|
 | W1.5 | **NOT STARTED** | 1h | Create the public GitHub repository and push `main`. | GitHub website; Git | Public README and Decision 001 visible; raw datasets absent. |
 | W1.6 | **NOT STARTED** | 0.5h | Record actual hours and Week 1 evidence. | This file; GitHub | Review is committed with evidence-based statuses and planned-versus-actual hours. |
 
