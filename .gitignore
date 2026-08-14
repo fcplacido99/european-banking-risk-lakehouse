@@ -1,0 +1,38 @@
+# Project-local Python environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets and local Databricks state
+.env
+.env.*
+!.env.example
+.databricks/
+*.pem
+*.key
+
+# Local data, generated manifests, and outputs
+/data/
+/raw/
+/local/
+/manifests/
+/outputs/
+
+# Locked full-size EBA source artifacts must never enter Git
+tr_cre.csv
+tr_oth.csv
+TR_Metadata.xlsx
+SDD.xlsx
+CSV_and_Tools_guide_Transparency_2024.pdf
+
+# Empty local planning scratch file; canonical plan is docs/project_plan.md
+/WORK_PLAN.md
