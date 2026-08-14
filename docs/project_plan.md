@@ -19,7 +19,7 @@ Allowed statuses are **NOT STARTED**, **ONGOING**, and **FINISHED**.
 | P0.1 | **FINISHED** | Official 2023–2025 EBA files are stored in year folders outside this repository. |
 | P0.2 | **FINISHED** | The 2024 files were profiled and the consulting question selected in the private implementation guide. |
 | P0.3 | **FINISHED** | 2024 counts, hashes, KPI coverage, keys, and reconciliation behaviour are recorded in Decision 001. |
-| P0.4 | **ONGOING** | Repository implementation is in progress; public GitHub publication has not yet occurred. |
+| P0.4 | **FINISHED** | Repository implementation is in progress; public GitHub publication has not yet occurred. |
 
 ## Week 1 — 10 Aug to 16 Aug 2026
 
@@ -31,7 +31,7 @@ Goal: publish a safe, documentation-first GitHub repository.
 | W1.2 | **FINISHED** | 1h | Select Python 3.12 and create `.venv` in the repository. | Python launcher; PowerShell; `venv` | `.venv/pyvenv.cfg` records Python 3.12.10; activation, Python, and pip files exist; terminal execution confirmed by the project owner. |
 | W1.3 | **FINISHED** | 1.5h | Create the safe repository skeleton. | VS Code; PowerShell | Required directories and documentation placeholders exist; repository audit found zero CSV/XLSX/PDF data files; raw year folders remain outside the repository. |
 | W1.4 | **FINISHED** | 1h | Add exclusions, initialize Git, audit, and make the first commit. | Git; PowerShell | Commit 94881ae; clean working tree; 15 audited files tracked; no raw EBA files, secrets, generated outputs, or virtual environment tracked.|
-| W1.5 | **NOT STARTED** | 1h | Create the public GitHub repository and push `main`. | GitHub website; Git | Public README and Decision 001 visible; raw datasets absent. |
+| W1.5 | **FINISHED** | 1h | Create the public GitHub repository and push `main`. | GitHub website; Git |Public repository verified at `https://github.com/fcplacido99/european-banking-risk-lakehouse`; README renders; Decision 001 is tracked; raw datasets and `.venv` are absent. |
 | W1.6 | **NOT STARTED** | 0.5h | Record actual hours and Week 1 evidence. | This file; GitHub | Review is committed with evidence-based statuses and planned-versus-actual hours. |
 
 ## Milestone calendar
