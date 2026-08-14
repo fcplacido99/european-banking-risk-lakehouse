@@ -19,7 +19,7 @@ Allowed statuses are **NOT STARTED**, **ONGOING**, and **FINISHED**.
 | P0.1 | **FINISHED** | Official 2023–2025 EBA files are stored in year folders outside this repository. |
 | P0.2 | **FINISHED** | The 2024 files were profiled and the consulting question selected in the private implementation guide. |
 | P0.3 | **FINISHED** | 2024 counts, hashes, KPI coverage, keys, and reconciliation behaviour are recorded in Decision 001. |
-| P0.4 | **FINISHED** | Repository implementation is in progress; public GitHub publication has not yet occurred. |
+| P0.4 | **FINISHED** | Public implementation repository exists with the committed 2024 decision record and a safe documentation-first skeleton. |
 
 ## Week 1 — 10 Aug to 16 Aug 2026
 
@@ -32,7 +32,16 @@ Goal: publish a safe, documentation-first GitHub repository.
 | W1.3 | **FINISHED** | 1.5h | Create the safe repository skeleton. | VS Code; PowerShell | Required directories and documentation placeholders exist; repository audit found zero CSV/XLSX/PDF data files; raw year folders remain outside the repository. |
 | W1.4 | **FINISHED** | 1h | Add exclusions, initialize Git, audit, and make the first commit. | Git; PowerShell | Commit 94881ae; clean working tree; 15 audited files tracked; no raw EBA files, secrets, generated outputs, or virtual environment tracked.|
 | W1.5 | **FINISHED** | 1h | Create the public GitHub repository and push `main`. | GitHub website; Git |Public repository verified at `https://github.com/fcplacido99/european-banking-risk-lakehouse`; README renders; Decision 001 is tracked; raw datasets and `.venv` are absent. |
-| W1.6 | **NOT STARTED** | 0.5h | Record actual hours and Week 1 evidence. | This file; GitHub | Review is committed with evidence-based statuses and planned-versus-actual hours. |
+| W1.6 | **FINISHED** | 0.5h | Record actual hours and Week 1 evidence. | This file; GitHub | Evidence section identifies Decision 001, commits `94881ae`, `243cb5d`, and `062e381`, the public repository, and the verified final state: synchronized `main`, clean working tree, and no raw EBA files or virtual environment tracked. |
+
+### Evidence
+
+- Decision record: `docs/decisions/001-2024-vertical-slice.md`
+- Initial audited commit: `94881ae`
+- W1.4 evidence commit: `243cb5d`
+- Public-repository evidence commit: `062e381`
+- Public repository: <https://github.com/fcplacido99/european-banking-risk-lakehouse>
+- Final state: public repository, synchronized `main`, clean working tree, and no raw EBA files or virtual environment tracked.
 
 ## Milestone calendar
 
