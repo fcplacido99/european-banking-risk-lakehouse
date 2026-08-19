@@ -3,7 +3,8 @@
 ## Capacity and sequencing
 
 - Week 1 capacity: 6 project hours remaining.
-- Weeks 2–25 capacity: 8 project hours per week.
+- Week 2 capacity: 9 project hours as an approved exception.
+- Weeks 3–25 capacity: 8 project hours per week.
 - Only the earliest unfinished subtask may be worked on.
 - A subtask becomes **FINISHED** only when every evidence item is checked.
 - Overruns move forward; technical gates are never removed to preserve dates.
@@ -42,6 +43,19 @@ Goal: publish a safe, documentation-first GitHub repository.
 - Public-repository evidence commit: `062e381`
 - Public repository: <https://github.com/fcplacido99/european-banking-risk-lakehouse>
 - Final state: public repository, synchronized `main`, clean working tree, and no raw EBA files or virtual environment tracked.
+
+## Week 2 — 17 Aug to 23 Aug 2026
+
+Goal: establish an installable, locally testable Python foundation grounded in
+the real 2024 EBA schemas.
+
+| ID | Status | Budget | Subtask | Tools | Finish evidence |
+|---|---|---:|---|---|---|
+| W2.1 | **FINISHED** | 1.5h | Configure the Python package and local pytest path. | Python 3.12; pip; setuptools; pytest | Configure the Python package and local pytest path. | Python 3.12; pip; setuptools; pytest | Python 3.12.10; editable installation succeeded; `pip check` passed; package version `0.1.0` and pytest 8.4.2 import outside Databricks. |
+| W2.2 | **NOT STARTED** | 1.5h | Add immutable contract types and controlled error codes. | Python standard library; pytest | Public contract types import without Databricks; enum values, immutability, and error-code behavior are tested. |
+| W2.3 | **NOT STARTED** | 3.5h | Inspect real schemas and create minimal dataset-grounded fixtures. | EBA files read-only; Python; CSV; openpyxl; pytest | Exact headers and intended edge cases are represented in documented fixtures totaling less than 100 KB; fixture-contract tests pass. |
+| W2.4 | **NOT STARTED** | 2h | Implement initial normalization, period, identifier, and division helpers. | Python standard library; pytest | Positive and controlled-failure tests pass for every documented helper without Databricks. |
+| W2.5 | **NOT STARTED** | 0.5h | Audit, record, and publish Week 2 evidence. | pytest; pip; Git; GitHub | Complete local suite and dependency checks pass; repository audit is clean; evidence is committed and pushed. |
 
 ## Milestone calendar
 
