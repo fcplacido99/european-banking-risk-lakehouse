@@ -1,33 +1,39 @@
-# Stable data coontracts and controlled error codes
+"""Stable data contracts and controlled error codes."""
 
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from pathlib import Path
 
-# Supported physical formats for official source artifacts
+
 class SourceFileType(StrEnum):
+    """Supported physical formats for official source artifacts."""
+
     CSV = "csv"
     XLSX = "xlsx"
     PDF = "pdf"
 
 
-# possible outcomes recorded for source artifact
 class ManifestStatus(StrEnum):
+    """Possible outcomes recorded for a source artifact."""
+
     DOWNLOADED = "downloaded"
     UNCHANGED = "unchanged"
     FAILED = "failed"
 
 
-# severity levels used by pipeline validation results
 class ValidationSeverity(StrEnum):
+    """Severity levels used by pipeline validation results."""
+
     FATAL = "fatal"
     QUARANTINE_FATAL = "quarantine_fatal"
     EXPECTED_NULLABLE = "expected_nullable"
     WARNING = "warning"
 
 
-# Stable machine-readable codes for controlled failures.
 class ErrorCode(StrEnum):
+    """Stable machine-readable codes for controlled failures."""
+
     INVALID_HEADER = "INVALID_HEADER"
     INVALID_PERIOD = "INVALID_PERIOD"
     SOURCE_CONTENT_CHANGED = "SOURCE_CONTENT_CHANGED"
@@ -36,19 +42,25 @@ class ErrorCode(StrEnum):
     HASH_MISMATCH = "HASH_MISMATCH"
     DUPLICATE_NATURAL_KEY = "DUPLICATE_NATURAL_KEY"
     NONNUMERIC_AMOUNT = "NONNUMERIC_AMOUNT"
+    INVALID_SOURCE_CONFIG = "INVALID_SOURCE_CONFIG"
+    DOWNLOAD_TIMEOUT = "DOWNLOAD_TIMEOUT"
+    HTTP_ERROR = "HTTP_ERROR"
+    DOWNLOAD_INTERRUPTED = "DOWNLOAD_INTERRUPTED"
 
 
-# a controlled contract failure carrying a stable error code
 class ContractError(ValueError):
+    """Controlled contract failure carrying a stable error code."""
+
     def __init__(self, code: ErrorCode, message: str):
         self.code = code
         self.message = message
         super().__init__(f"{code.value}: {message}")
 
 
-# Expected identity and format of one official source artifact
 @dataclass(frozen=True, slots=True)
 class SourceArtifactContract:
+    """Expected identity and format of one official source artifact."""
+
     release_year: int
     source_url: str
     source_file: str
@@ -56,9 +68,10 @@ class SourceArtifactContract:
     file_type: SourceFileType
 
 
-# Observed source-artifact metadata recorded during acquisition.
 @dataclass(frozen=True, slots=True)
 class ManifestRecord:
+    """Observed source-artifact metadata recorded during acquisition."""
+
     release_year: int
     source_url: str
     source_file: str
@@ -68,11 +81,22 @@ class ManifestRecord:
     status: ManifestStatus
 
 
-# Outcome of one named validation check
 @dataclass(frozen=True, slots=True)
 class ValidationResult:
+    """Outcome of one named validation check."""
+
     check_name: str
     passed: bool
     severity: ValidationSeverity
     message: str
     error_code: ErrorCode | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DownloadedArtifact:
+    """Validated local artifact produced by the acquisition boundary."""
+
+    source_file: str
+    local_path: Path
+    content_length: int
+    sha256: str

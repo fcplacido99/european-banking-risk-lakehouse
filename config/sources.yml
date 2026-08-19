@@ -1,0 +1,23 @@
+releases:
+  "2024":
+    artifacts:
+      - source_url: https://www.eba.europa.eu/assets/TE2024/Full_database/256109/tr_cre.csv
+        source_file: tr_cre.csv
+        expected_sha256: 4175521FBBE352E7E8973C37F419F16A8FE3B6FC5974EA7955BAF67AADF2060E
+        file_type: csv
+      - source_url: https://www.eba.europa.eu/assets/TE2024/Full_database/256109/tr_oth.csv
+        source_file: tr_oth.csv
+        expected_sha256: E2C6D0B9DDB887F96FF0AF7A51BBBD7D8E7B467A9E9E1110514660AECBCAA584
+        file_type: csv
+      - source_url: https://www.eba.europa.eu/assets/TE2024/Full_database/256109/TR_Metadata.xlsx
+        source_file: TR_Metadata.xlsx
+        expected_sha256: ECD488DFFA578DABB89594CCC00409303B14446E7B0EAEBAB2BDAA7A65E7BC21
+        file_type: xlsx
+      - source_url: https://www.eba.europa.eu/assets/TE2024/Full_database/256109/SDD.xlsx
+        source_file: SDD.xlsx
+        expected_sha256: 9F350211B2D54AE7A273526A0402AB43965822FF527DC2E587149C98BD13D6A9
+        file_type: xlsx
+      - source_url: https://www.eba.europa.eu/assets/TE2024/Full_database/256109/CSV_and_Tools_guide_Transparency_2024.pdf
+        source_file: CSV_and_Tools_guide_Transparency_2024.pdf
+        expected_sha256: 95302EF9E86DB6354CEFC44B027977A894FADC2C4A17F71EF47D40232FE1F5F2
+        file_type: pdf

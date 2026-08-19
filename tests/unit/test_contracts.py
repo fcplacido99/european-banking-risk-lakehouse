@@ -2,12 +2,13 @@
 
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
-from inspect import getdoc
+from pathlib import Path
 
 import pytest
 
 from eba_lakehouse.contracts import (
     ContractError,
+    DownloadedArtifact,
     ErrorCode,
     ManifestRecord,
     ManifestStatus,
@@ -44,6 +45,10 @@ def test_enum_values_are_stable() -> None:
         "HASH_MISMATCH",
         "DUPLICATE_NATURAL_KEY",
         "NONNUMERIC_AMOUNT",
+        "INVALID_SOURCE_CONFIG",
+        "DOWNLOAD_TIMEOUT",
+        "HTTP_ERROR",
+        "DOWNLOAD_INTERRUPTED",
     }
 
 
@@ -117,6 +122,22 @@ def test_public_contract_types_have_docstrings() -> None:
         SourceArtifactContract,
         ManifestRecord,
         ValidationResult,
+        DownloadedArtifact,
     )
 
-    assert all(getdoc(public_type) for public_type in public_types)
+    assert all(
+        public_type.__doc__ is not None and public_type.__doc__.strip()
+        for public_type in public_types
+    )
+
+
+def test_downloaded_artifact_is_immutable() -> None:
+    artifact = DownloadedArtifact(
+        source_file="tr_cre.csv",
+        local_path=Path("tr_cre.csv"),
+        content_length=10,
+        sha256="a" * 64,
+    )
+
+    with pytest.raises(FrozenInstanceError):
+        artifact.content_length = 11  # type: ignore[misc]

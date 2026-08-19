@@ -71,6 +71,19 @@ the real 2024 EBA schemas.
 - Repository audit: no raw EBA artifacts, secrets, `.venv`, or generated outputs tracked
 - Databricks dependency: none; the complete Week 2 suite runs locally
 
+## Week 3 — 24 Aug to 30 Aug 2026
+
+Goal: implement safe streamed source acquisition and validation without a live
+EBA dependency in the automated test suite.
+
+| ID | Status | Budget | Subtask | Tools | Finish evidence |
+|---|---|---:|---|---|---|
+| W3.1 | **FINISHED** | 1.5h | Correct contract documentation and add validated 2024 source configuration. | Python; PyYAML; pytest | Fifteen focused tests and all 63 project tests passed; five official EBA URLs and locked hashes load as immutable contracts; invalid releases, URLs, paths, hashes, duplicates, and type mismatches fail without network access. |
+| W3.2 | **NOT STARTED** | 2.5h | Stream responses safely to temporary files. | Python; requests; pytest | Mocked multi-chunk transfer records the correct bytes and SHA-256; no final filename is published before validation and failed transfers leave no temporary residue. |
+| W3.3 | **NOT STARTED** | 2h | Validate and atomically publish artifacts. | Python; requests; filesystem APIs; pytest | Only artifacts passing size, signature/header, and SHA-256 checks receive final filenames; every failure cleans up staged data. |
+| W3.4 | **NOT STARTED** | 1.5h | Prove HTTP and content failure behavior. | pytest; mocked HTTP boundary | Timeout, HTTP, interrupted-transfer, empty, signature, header, hash, and existing-destination scenarios produce stable failures without internet access. |
+| W3.5 | **NOT STARTED** | 0.5h | Audit, record, and publish Week 3 evidence. | pytest; pip; Git; GitHub | Complete test and dependency gates pass; tracked-file audit is safe; evidence is committed and pushed with a clean synchronized working tree. |
+
 
 ## Milestone calendar
 
