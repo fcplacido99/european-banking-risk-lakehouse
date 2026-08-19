@@ -54,7 +54,7 @@ the real 2024 EBA schemas.
 | W2.1 | **FINISHED** | 1.5h | Configure the Python package and local pytest path. | Python 3.12; pip; setuptools; pytest | Python 3.12.10; editable installation succeeded; `pip check` passed; package version `0.1.0` and pytest 8.4.2 import outside Databricks. |
 | W2.2 | **FINISHED** | 1.5h | Add immutable contract types and controlled error codes. | Python standard library; pytest | Six contract tests passed; isolated standard-library import succeeded; enum values, immutable records, docstrings, and controlled error behavior were verified without Databricks. |
 | W2.3 | **FINISHED** | 3.5h | Inspect real schemas and create minimal dataset-grounded fixtures. | EBA files read-only; Python; CSV; openpyxl; pytest | Twelve fixture-contract tests passed; six CSV and one XLSX fixture reproduce verified schema and failure modes; combined fixture size remains below 100 KB; no raw EBA artifact was copied into Git. |
-| W2.4 | **NOT STARTED** | 2h | Implement initial normalization, period, identifier, and division helpers. | Python standard library; pytest | Positive and controlled-failure tests pass for every documented helper without Databricks. |
+| W2.4 | **FINISHED** | 2h | Implement initial normalization, period, identifier, and division helpers. | Python standard library; pytest | Thirty-six focused helper tests and all 54 project tests passed; package imports outside Databricks; header, LEI, aggregate, month-end, missingness, and denominator contracts are verified. |
 | W2.5 | **NOT STARTED** | 0.5h | Audit, record, and publish Week 2 evidence. | pytest; pip; Git; GitHub | Complete local suite and dependency checks pass; repository audit is clean; evidence is committed and pushed. |
 
 ## Milestone calendar
