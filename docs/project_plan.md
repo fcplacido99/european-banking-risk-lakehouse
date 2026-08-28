@@ -99,6 +99,19 @@ EBA dependency in the automated test suite.
 - Publication behavior: only validated content receives its final filename
 - Repository audit: no raw EBA source, `.venv`, secret, local path, `.part` file, or exploratory output tracked
 
+## Week 4 — 31 Aug to 6 Sep 2026
+
+Goal: complete deterministic manifests, local acquisition idempotency, and the
+command-line acquisition path without a live EBA dependency in automated tests.
+
+| ID | Status | Budget | Subtask | Tools | Finish evidence |
+|---|---|---:|---|---|---|
+| W4.1 | **FINISHED** | 2.5h | Implement deterministic manifest parsing and atomic publication. | Python; JSON; filesystem APIs; pytest | Nineteen focused manifest tests and all 100 project tests passed; canonical records are sorted and normalized, malformed manifests fail with `INVALID_MANIFEST`, identical writes are no-ops, and failed atomic publication leaves no partial file. |
+| W4.2 | **NOT STARTED** | 2h | Implement existing-file validation, forced recovery, and release idempotency. | Python; requests; filesystem APIs; pytest | Same-hash artifacts avoid HTTP, changed content fails safely, forced recovery preserves the prior artifact on failure, and the manifest is published only after the complete release succeeds. |
+| W4.3 | **NOT STARTED** | 1.5h | Add the acquisition command-line interface and output-path safeguards. | Python; argparse; pytest | The documented command handles valid, invalid, unsafe, successful, and no-op runs with stable exit behavior. |
+| W4.4 | **NOT STARTED** | 1.5h | Prove two-run acquisition idempotency with five offline artifacts. | pytest; mocked HTTP boundary | The first run publishes five artifacts and one manifest; the second performs no HTTP request and preserves identical artifact and manifest bytes. |
+| W4.5 | **NOT STARTED** | 0.5h | Audit, record, and publish Week 4 evidence. | pytest; pip; Git; GitHub | Complete gates pass; repository audit is safe; evidence is committed and pushed with a clean synchronized working tree. |
+
 
 ## Milestone calendar
 

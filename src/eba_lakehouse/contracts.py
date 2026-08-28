@@ -1,5 +1,7 @@
 """Stable data contracts and controlled error codes."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -46,6 +48,7 @@ class ErrorCode(StrEnum):
     DOWNLOAD_TIMEOUT = "DOWNLOAD_TIMEOUT"
     HTTP_ERROR = "HTTP_ERROR"
     DOWNLOAD_INTERRUPTED = "DOWNLOAD_INTERRUPTED"
+    INVALID_MANIFEST = "INVALID_MANIFEST"
 
 
 class ContractError(ValueError):
@@ -78,6 +81,15 @@ class ManifestRecord:
     content_length: int
     sha256: str
     retrieved_at_utc: datetime
+    status: ManifestStatus
+    error_code: ErrorCode | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AcquisitionResult:
+    """Observed outcome for one artifact in a release acquisition."""
+
+    artifact: DownloadedArtifact
     status: ManifestStatus
 
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from eba_lakehouse.contracts import (
+    AcquisitionResult,
     ContractError,
     DownloadedArtifact,
     ErrorCode,
@@ -49,6 +50,7 @@ def test_enum_values_are_stable() -> None:
         "DOWNLOAD_TIMEOUT",
         "HTTP_ERROR",
         "DOWNLOAD_INTERRUPTED",
+        "INVALID_MANIFEST",
     }
 
 
@@ -123,6 +125,7 @@ def test_public_contract_types_have_docstrings() -> None:
         ManifestRecord,
         ValidationResult,
         DownloadedArtifact,
+        AcquisitionResult,
     )
 
     assert all(
