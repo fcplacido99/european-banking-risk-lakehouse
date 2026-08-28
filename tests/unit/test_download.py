@@ -457,3 +457,125 @@ def test_download_artifact_does_not_overwrite_existing_file(
     assert destination.read_bytes() == b"existing-content"
     assert session.calls == []
     assert not list(tmp_path.glob("*.part"))
+
+
+@pytest.mark.parametrize(
+    "status_code",
+    [404, 500],
+)
+def test_download_artifact_maps_http_status_errors(
+    tmp_path: Path,
+    status_code: int,
+) -> None:
+    response = FakeResponse(
+        chunks=[],
+        status_code=status_code,
+    )
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(),
+            tmp_path,
+            session=session,
+        )
+
+    assert caught.value.code is ErrorCode.HTTP_ERROR
+    assert "tr_cre.csv" in caught.value.message
+    assert f"HTTP status {status_code}" in caught.value.message
+
+    assert response.closed
+    assert len(session.calls) == 1
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_artifact_maps_stream_read_timeout(
+    tmp_path: Path,
+) -> None:
+    response = FakeResponse(
+        [
+            b"partial-content",
+            requests_exceptions.ReadTimeout(
+                "response stopped"
+            ),
+        ]
+    )
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(),
+            tmp_path,
+            session=session,
+        )
+
+    assert caught.value.code is ErrorCode.DOWNLOAD_TIMEOUT
+    assert "tr_cre.csv" in caught.value.message
+    assert "streaming" in caught.value.message
+
+    assert response.closed
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_artifact_cleans_interruption_before_first_chunk(
+    tmp_path: Path,
+) -> None:
+    response = FakeResponse(
+        [
+            requests_exceptions.ChunkedEncodingError(
+                "response ended before first chunk"
+            )
+        ]
+    )
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(),
+            tmp_path,
+            session=session,
+        )
+
+    assert (
+        caught.value.code
+        is ErrorCode.DOWNLOAD_INTERRUPTED
+    )
+    assert "tr_cre.csv" in caught.value.message
+
+    assert response.closed
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_validation_failure_preserves_unrelated_file(
+    tmp_path: Path,
+) -> None:
+    unrelated_file = tmp_path / "existing-notes.txt"
+    unrelated_file.write_bytes(b"do-not-change")
+
+    payload = b"wrong,header\n1,2\n"
+    response = FakeResponse([payload])
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(
+                hashlib.sha256(payload).hexdigest()
+            ),
+            tmp_path,
+            session=session,
+        )
+
+    assert (
+        caught.value.code
+        is ErrorCode.INVALID_FILE_SIGNATURE
+    )
+
+    assert (
+        unrelated_file.read_bytes()
+        == b"do-not-change"
+    )
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
