@@ -82,7 +82,22 @@ EBA dependency in the automated test suite.
 | W3.2 | **FINISHED** | 2.5h | Stream responses safely to temporary files. | Python; requests; pytest | Three focused staging tests and all 66 project tests passed; mocked multi-chunk transfer preserved byte order, size, and SHA-256 without loading the full response; interrupted and timed-out transfers left no temporary or final artifact. |
 | W3.3 | **FINISHED** | 2h | Validate and atomically publish artifacts. | Python; requests; filesystem APIs; pytest | Thirteen focused download tests and all 76 project tests passed; CSV headers, XLSX/PDF signatures, nonzero size, and SHA-256 are validated before atomic publication; invalid, empty, mismatched, and existing-destination cases leave no final or temporary artifact. |
 | W3.4 | **FINISHED** | 1.5h | Prove HTTP and content failure behavior. | pytest; mocked HTTP boundary | Eighteen focused acquisition tests and all 81 project tests passed without internet access; HTTP 404/500, connect/read timeout, interruption before and after partial transfer, empty content, invalid signatures and headers, hash mismatch, and existing destinations produce controlled behavior with complete cleanup. |
-| W3.5 | **NOT STARTED** | 0.5h | Audit, record, and publish Week 3 evidence. | pytest; pip; Git; GitHub | Complete test and dependency gates pass; tracked-file audit is safe; evidence is committed and pushed with a clean synchronized working tree. |
+| W3.5 | **FINISHED** | 0.5h | Audit, record, and publish Week 3 evidence. | pytest; pip; Git; GitHub | Python 3.12.10, dependency checks, and all 81 project tests passed; the tracked-file and credential-pattern audits found no forbidden source artifact, secret, virtual environment, temporary download, or local path; completion evidence was committed and published. |
+
+### Week 3 evidence
+
+- Validated 2024 source configuration: commit `82f233f`
+- Streamed temporary-file staging: commit `7000742`
+- Content validation and atomic publication: commit `bc8384b`
+- Acquisition failure boundaries: commit `f5a99a6`
+- Runtime: Python 3.12.10
+- Dependency result: `pip check` reported no broken requirements
+- Automated tests: 81 passed
+- Source contracts: five official 2024 EBA artifacts with locked SHA-256 values
+- HTTP boundary: fully mocked; automated tests require no live EBA access
+- Failure coverage: HTTP 404/500, connect/read timeout, interrupted transfer, empty content, invalid signature/header, hash mismatch, and existing destination
+- Publication behavior: only validated content receives its final filename
+- Repository audit: no raw EBA source, `.venv`, secret, local path, `.part` file, or exploratory output tracked
 
 
 ## Milestone calendar
@@ -93,7 +108,7 @@ table provides the repository-visible delivery sequence.
 | Week | Planned outcome | Gate status |
 |---:|---|---|
 | 2 | Locally testable Python package foundation | **FINISHED** |
-| 3 | Safe streamed acquisition and validation | **NOT STARTED** |
+| 3 | Safe streamed acquisition and validation | **FINISHED** |
 | 4 | Manifests, CLI, and acquisition idempotency | **NOT STARTED** |
 | 5 | Institution and dimension workbook parsing | **NOT STARTED** |
 | 6 | Metric, bank, and dimension bridges | **NOT STARTED** |
