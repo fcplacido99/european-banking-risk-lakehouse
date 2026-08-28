@@ -1,11 +1,13 @@
 """Acquire official source artifacts safely and idempotently."""
 
+import argparse
 from datetime import UTC, datetime
 from dataclasses import dataclass
 import hashlib
 import os
 from pathlib import Path
 import tempfile
+import sys
 from typing import Iterable, Protocol
 from requests import exceptions as requests_exceptions
 
@@ -580,3 +582,82 @@ def acquire_release(
 
     write_manifest(manifest_path, release_year, records)
     return tuple(results)
+
+
+def _parse_boolean(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise argparse.ArgumentTypeError("expected 'true' or 'false'")
+
+
+def _repository_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _validated_output_dir(output_dir: Path) -> Path:
+    resolved = output_dir.expanduser().resolve()
+    repository_root = _repository_root()
+    protected_paths = (
+        repository_root,
+        repository_root / ".git",
+        repository_root / ".venv",
+        repository_root / "config",
+        repository_root / "docs",
+        repository_root / "src",
+        repository_root / "tests",
+    )
+    if any(resolved == path or path in resolved.parents for path in protected_paths):
+        raise ContractError(
+            ErrorCode.INVALID_SOURCE_CONFIG,
+            f"unsafe acquisition output directory: {resolved}",
+        )
+    if resolved.exists() and not resolved.is_dir():
+        raise ContractError(
+            ErrorCode.INVALID_SOURCE_CONFIG,
+            f"acquisition output path is not a directory: {resolved}",
+        )
+    return resolved
+
+
+def _argument_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Acquire hash-verified EBA source artifacts.",
+    )
+    parser.add_argument("--release-year", required=True, type=int)
+    parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument(
+        "--force-redownload",
+        type=_parse_boolean,
+        default=False,
+        metavar="{true,false}",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the command-line acquisition workflow."""
+
+    arguments = _argument_parser().parse_args(argv)
+    try:
+        output_dir = _validated_output_dir(arguments.output_dir)
+        results = acquire_release(
+            _repository_root() / "config" / "sources.yml",
+            arguments.release_year,
+            output_dir,
+            force_redownload=arguments.force_redownload,
+        )
+    except (ContractError, OSError) as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 2
+
+    for result in results:
+        print(f"{result.artifact.source_file}: {result.status.value}")
+    print(f"Manifest: {output_dir / 'manifest.json'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
