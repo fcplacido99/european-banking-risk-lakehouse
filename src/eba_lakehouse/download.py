@@ -9,17 +9,67 @@ from typing import Iterable, Protocol
 from requests import exceptions as requests_exceptions
 
 import requests
+import csv
 
 from eba_lakehouse.contracts import (
     ContractError,
+    DownloadedArtifact,
     ErrorCode,
     SourceArtifactContract,
+    SourceFileType,
 )
 
 
 CONNECT_TIMEOUT_SECONDS = 10
 READ_TIMEOUT_SECONDS = 120
 DOWNLOAD_CHUNK_BYTES = 1024 * 1024
+
+CREDIT_CSV_HEADER = (
+    "LEI_Code",
+    "NSA",
+    "Period",
+    "Item",
+    "Label",
+    "Portfolio",
+    "Country",
+    "Country_rank",
+    "Exposure",
+    "Status",
+    "Perf_Status",
+    "NACE_codes",
+    "Amount",
+    "Footnote",
+    "Row",
+    "Column",
+    "Sheet",
+)
+
+OTHER_CSV_HEADER = (
+    "LEI_Code",
+    "NSA",
+    "Period",
+    "Item",
+    "Label",
+    "ASSETS_FV",
+    "ASSETS_Stages",
+    "Exposure",
+    "Financial_instruments",
+    "Amount",
+    "Fin_end_year",
+    "n_quarters",
+    "Footnote",
+    "Row",
+    "Column",
+    "Sheet",
+)
+
+_EXPECTED_CSV_HEADERS = {
+    "tr_cre.csv": CREDIT_CSV_HEADER,
+    "tr_oth.csv": OTHER_CSV_HEADER,
+}
+
+PDF_SIGNATURE = b"%PDF-"
+XLSX_SIGNATURE = b"PK\x03\x04"
 
 
 class _StreamingResponse(Protocol):
@@ -212,3 +262,203 @@ def _stage_download(
 
         if owns_session:
             http_session.close()
+
+
+def _validate_csv_header(
+    staged_path: Path,
+    contract: SourceArtifactContract,
+) -> None:
+    """Validate the complete header of a locked CSV artifact."""
+
+    expected_header = _EXPECTED_CSV_HEADERS.get(
+        contract.source_file
+    )
+
+    if expected_header is None:
+        raise _download_error(
+            ErrorCode.INVALID_FILE_SIGNATURE,
+            contract,
+            "no CSV header contract is defined",
+        )
+
+    try:
+        with staged_path.open(
+            mode="r",
+            encoding="utf-8-sig",
+            newline="",
+        ) as staged_file:
+            observed_header = tuple(
+                next(csv.reader(staged_file))
+            )
+
+    except (
+        UnicodeDecodeError,
+        csv.Error,
+        StopIteration,
+    ) as error:
+        raise _download_error(
+            ErrorCode.INVALID_FILE_SIGNATURE,
+            contract,
+            "file is not a readable UTF-8 CSV",
+        ) from error
+
+    if observed_header != expected_header:
+        raise _download_error(
+            ErrorCode.INVALID_FILE_SIGNATURE,
+            contract,
+            (
+                "CSV header does not match the locked "
+                f"{contract.source_file} contract"
+            ),
+        )
+
+
+def _validate_binary_signature(
+    staged_path: Path,
+    contract: SourceArtifactContract,
+    expected_signature: bytes,
+) -> None:
+    """Validate a binary file's leading signature bytes."""
+
+    with staged_path.open("rb") as staged_file:
+        observed_signature = staged_file.read(
+            len(expected_signature)
+        )
+
+    if observed_signature != expected_signature:
+        raise _download_error(
+            ErrorCode.INVALID_FILE_SIGNATURE,
+            contract,
+            (
+                "file signature does not match "
+                f"{contract.file_type.value}"
+            ),
+        )
+
+
+def _validate_staged_download(
+    staged: _StagedDownload,
+    contract: SourceArtifactContract,
+) -> None:
+    """Validate size, physical signature and configured hash."""
+
+    if staged.content_length == 0:
+        raise _download_error(
+            ErrorCode.EMPTY_FILE,
+            contract,
+            "downloaded artifact is empty",
+        )
+
+    if contract.file_type is SourceFileType.CSV:
+        _validate_csv_header(
+            staged.path,
+            contract,
+        )
+
+    elif contract.file_type is SourceFileType.XLSX:
+        _validate_binary_signature(
+            staged.path,
+            contract,
+            XLSX_SIGNATURE,
+        )
+
+    elif contract.file_type is SourceFileType.PDF:
+        _validate_binary_signature(
+            staged.path,
+            contract,
+            PDF_SIGNATURE,
+        )
+
+    else:
+        raise _download_error(
+            ErrorCode.INVALID_FILE_SIGNATURE,
+            contract,
+            f"unsupported file type {contract.file_type!r}",
+        )
+
+    if (
+        staged.sha256.lower()
+        != contract.expected_sha256.lower()
+    ):
+        raise _download_error(
+            ErrorCode.HASH_MISMATCH,
+            contract,
+            (
+                "downloaded SHA-256 does not match "
+                "the configured source contract"
+            ),
+        )
+
+
+def _validate_source_filename(
+    contract: SourceArtifactContract,
+) -> None:
+    """Reject directory components in a destination filename."""
+
+    if (
+        contract.source_file != Path(contract.source_file).name
+        or "/" in contract.source_file
+        or "\\" in contract.source_file
+    ):
+        raise ContractError(
+            ErrorCode.INVALID_SOURCE_CONFIG,
+            (
+                "source_file must contain only a filename: "
+                f"{contract.source_file!r}"
+            ),
+        )
+
+
+def download_artifact(
+    contract: SourceArtifactContract,
+    output_dir: Path,
+    *,
+    session: _HttpSession | None = None,
+) -> DownloadedArtifact:
+    """Download, validate and atomically publish one artifact."""
+
+    _validate_source_filename(contract)
+
+    final_path = output_dir / contract.source_file
+
+    # Week 4 will replace this with same-hash idempotency.
+    if final_path.exists():
+        raise FileExistsError(
+            f"Destination already exists: {final_path}"
+        )
+
+    staged: _StagedDownload | None = None
+
+    try:
+        staged = _stage_download(
+            contract,
+            output_dir,
+            session=session,
+        )
+
+        _validate_staged_download(
+            staged,
+            contract,
+        )
+
+        # Check again immediately before publication.
+        if final_path.exists():
+            raise FileExistsError(
+                f"Destination already exists: {final_path}"
+            )
+
+        os.replace(
+            staged.path,
+            final_path,
+        )
+
+        return DownloadedArtifact(
+            source_file=contract.source_file,
+            local_path=final_path,
+            content_length=staged.content_length,
+            sha256=staged.sha256,
+        )
+
+    finally:
+        if staged is not None:
+            _remove_if_present(staged.path)

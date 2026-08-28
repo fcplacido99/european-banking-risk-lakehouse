@@ -20,6 +20,13 @@ from eba_lakehouse.download import (
     DOWNLOAD_CHUNK_BYTES,
     READ_TIMEOUT_SECONDS,
     _stage_download,
+    download_artifact,
+)
+
+FIXTURE_DIRECTORY = (
+    Path(__file__).resolve().parents[1]
+    / "fixtures"
+    / "csv"
 )
 
 
@@ -103,16 +110,19 @@ class FakeSession:
 
 def make_contract(
     expected_sha256: str = "a" * 64,
+    *,
+    source_file: str = "tr_cre.csv",
+    file_type: SourceFileType = SourceFileType.CSV,
 ) -> SourceArtifactContract:
     return SourceArtifactContract(
         release_year=2024,
         source_url=(
             "https://www.eba.europa.eu/"
-            "assets/example/tr_cre.csv"
+            f"assets/example/{source_file}"
         ),
-        source_file="tr_cre.csv",
+        source_file=source_file,
         expected_sha256=expected_sha256,
-        file_type=SourceFileType.CSV,
+        file_type=file_type,
     )
 
 
@@ -220,3 +230,230 @@ def test_stage_download_maps_request_timeout(
     assert "tr_cre.csv" in caught.value.message
 
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.parametrize(
+    (
+        "source_file",
+        "file_type",
+        "payload",
+    ),
+    [
+        (
+            "tr_cre.csv",
+            SourceFileType.CSV,
+            (
+                FIXTURE_DIRECTORY
+                / "tr_cre_valid.csv"
+            ).read_bytes(),
+        ),
+        (
+            "TR_Metadata.xlsx",
+            SourceFileType.XLSX,
+            b"PK\x03\x04synthetic-xlsx-content",
+        ),
+        (
+            "CSV_and_Tools_guide_Transparency_2024.pdf",
+            SourceFileType.PDF,
+            b"%PDF-1.7\nsynthetic-pdf-content\n%%EOF",
+        ),
+    ],
+)
+def test_download_artifact_validates_and_publishes(
+    tmp_path: Path,
+    source_file: str,
+    file_type: SourceFileType,
+    payload: bytes,
+) -> None:
+    expected_sha256 = hashlib.sha256(
+        payload
+    ).hexdigest()
+
+    response = FakeResponse(
+        [
+            payload[:5],
+            payload[5:],
+        ]
+    )
+    session = FakeSession(response=response)
+
+    result = download_artifact(
+        make_contract(
+            expected_sha256,
+            source_file=source_file,
+            file_type=file_type,
+        ),
+        tmp_path,
+        session=session,
+    )
+
+    expected_path = tmp_path / source_file
+
+    assert result.source_file == source_file
+    assert result.local_path == expected_path
+    assert result.content_length == len(payload)
+    assert result.sha256 == expected_sha256
+
+    assert expected_path.read_bytes() == payload
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_artifact_rejects_empty_file(
+    tmp_path: Path,
+) -> None:
+    payload = b""
+    response = FakeResponse([payload])
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(
+                hashlib.sha256(payload).hexdigest()
+            ),
+            tmp_path,
+            session=session,
+        )
+
+    assert caught.value.code is ErrorCode.EMPTY_FILE
+    assert "tr_cre.csv" in caught.value.message
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+@pytest.mark.parametrize(
+    (
+        "source_file",
+        "file_type",
+        "payload",
+    ),
+    [
+        (
+            "TR_Metadata.xlsx",
+            SourceFileType.XLSX,
+            b"PK",
+        ),
+        (
+            "CSV_and_Tools_guide_Transparency_2024.pdf",
+            SourceFileType.PDF,
+            b"%PD",
+        ),
+    ],
+)
+def test_download_artifact_rejects_truncated_signature(
+    tmp_path: Path,
+    source_file: str,
+    file_type: SourceFileType,
+    payload: bytes,
+) -> None:
+    response = FakeResponse([payload])
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(
+                hashlib.sha256(payload).hexdigest(),
+                source_file=source_file,
+                file_type=file_type,
+            ),
+            tmp_path,
+            session=session,
+        )
+
+    assert (
+        caught.value.code
+        is ErrorCode.INVALID_FILE_SIGNATURE
+    )
+    assert source_file in caught.value.message
+    assert not (tmp_path / source_file).exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_artifact_rejects_wrong_csv_header(
+    tmp_path: Path,
+) -> None:
+    payload = b"wrong,header\n1,2\n"
+    response = FakeResponse([payload])
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(
+                hashlib.sha256(payload).hexdigest()
+            ),
+            tmp_path,
+            session=session,
+        )
+
+    assert (
+        caught.value.code
+        is ErrorCode.INVALID_FILE_SIGNATURE
+    )
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_artifact_rejects_invalid_utf8_csv(
+    tmp_path: Path,
+) -> None:
+    payload = b"\xff\xfe\xfa"
+    response = FakeResponse([payload])
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract(
+                hashlib.sha256(payload).hexdigest()
+            ),
+            tmp_path,
+            session=session,
+        )
+
+    assert (
+        caught.value.code
+        is ErrorCode.INVALID_FILE_SIGNATURE
+    )
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_artifact_rejects_hash_mismatch(
+    tmp_path: Path,
+) -> None:
+    payload = (
+        FIXTURE_DIRECTORY
+        / "tr_cre_valid.csv"
+    ).read_bytes()
+
+    response = FakeResponse([payload])
+    session = FakeSession(response=response)
+
+    with pytest.raises(ContractError) as caught:
+        download_artifact(
+            make_contract("0" * 64),
+            tmp_path,
+            session=session,
+        )
+
+    assert caught.value.code is ErrorCode.HASH_MISMATCH
+    assert not (tmp_path / "tr_cre.csv").exists()
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_artifact_does_not_overwrite_existing_file(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "tr_cre.csv"
+    destination.write_bytes(b"existing-content")
+
+    session = FakeSession()
+
+    with pytest.raises(FileExistsError):
+        download_artifact(
+            make_contract(),
+            tmp_path,
+            session=session,
+        )
+
+    assert destination.read_bytes() == b"existing-content"
+    assert session.calls == []
+    assert not list(tmp_path.glob("*.part"))
