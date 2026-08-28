@@ -12,6 +12,7 @@ from requests import exceptions as requests_exceptions
 from eba_lakehouse.contracts import (
     ContractError,
     ErrorCode,
+    ManifestStatus,
     SourceArtifactContract,
     SourceFileType,
 )
@@ -20,6 +21,8 @@ from eba_lakehouse.download import (
     DOWNLOAD_CHUNK_BYTES,
     READ_TIMEOUT_SECONDS,
     _stage_download,
+    acquire_release,
+    calculate_file_identity,
     download_artifact,
 )
 
@@ -124,6 +127,29 @@ def make_contract(
         expected_sha256=expected_sha256,
         file_type=file_type,
     )
+
+
+def write_single_source_config(
+    path: Path,
+    payload: bytes,
+) -> Path:
+    config_path = path / "sources.yml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "releases:",
+                '  "2024":',
+                "    artifacts:",
+                "      - source_url: https://www.eba.europa.eu/example/tr_cre.csv",
+                "        source_file: tr_cre.csv",
+                f"        expected_sha256: {hashlib.sha256(payload).hexdigest()}",
+                "        file_type: csv",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return config_path
 
 
 def test_stage_download_streams_multiple_chunks(
@@ -579,3 +605,94 @@ def test_validation_failure_preserves_unrelated_file(
     )
     assert not (tmp_path / "tr_cre.csv").exists()
     assert not list(tmp_path.glob("*.part"))
+
+
+def test_calculate_file_identity_streams_local_file(tmp_path: Path) -> None:
+    path = tmp_path / "artifact.bin"
+    payload = b"content" * 100
+    path.write_bytes(payload)
+
+    assert calculate_file_identity(path) == (
+        len(payload),
+        hashlib.sha256(payload).hexdigest(),
+    )
+
+
+def test_acquire_release_reuses_matching_file_without_http(tmp_path: Path) -> None:
+    payload = (FIXTURE_DIRECTORY / "tr_cre_valid.csv").read_bytes()
+    config_path = write_single_source_config(tmp_path, payload)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    (output_dir / "tr_cre.csv").write_bytes(payload)
+    session = FakeSession()
+
+    results = acquire_release(config_path, 2024, output_dir, session=session)
+
+    assert len(results) == 1
+    assert results[0].status is ManifestStatus.UNCHANGED
+    assert session.calls == []
+    assert (output_dir / "manifest.json").exists()
+
+
+def test_acquire_release_rejects_changed_local_content(tmp_path: Path) -> None:
+    payload = (FIXTURE_DIRECTORY / "tr_cre_valid.csv").read_bytes()
+    config_path = write_single_source_config(tmp_path, payload)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    destination = output_dir / "tr_cre.csv"
+    destination.write_bytes(b"changed")
+    session = FakeSession()
+
+    with pytest.raises(ContractError) as caught:
+        acquire_release(config_path, 2024, output_dir, session=session)
+
+    assert caught.value.code is ErrorCode.SOURCE_CONTENT_CHANGED
+    assert destination.read_bytes() == b"changed"
+    assert session.calls == []
+    assert not (output_dir / "manifest.json").exists()
+
+
+def test_force_redownload_replaces_only_after_validation(tmp_path: Path) -> None:
+    payload = (FIXTURE_DIRECTORY / "tr_cre_valid.csv").read_bytes()
+    config_path = write_single_source_config(tmp_path, payload)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    destination = output_dir / "tr_cre.csv"
+    destination.write_bytes(b"corrupt")
+
+    results = acquire_release(
+        config_path,
+        2024,
+        output_dir,
+        force_redownload=True,
+        session=FakeSession(FakeResponse([payload])),
+    )
+
+    assert results[0].status is ManifestStatus.DOWNLOADED
+    assert destination.read_bytes() == payload
+    assert not list(output_dir.glob("*.part"))
+
+
+def test_failed_force_redownload_preserves_file_and_manifest(tmp_path: Path) -> None:
+    payload = (FIXTURE_DIRECTORY / "tr_cre_valid.csv").read_bytes()
+    config_path = write_single_source_config(tmp_path, payload)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    destination = output_dir / "tr_cre.csv"
+    destination.write_bytes(payload)
+    acquire_release(config_path, 2024, output_dir, session=FakeSession())
+    manifest_before = (output_dir / "manifest.json").read_bytes()
+
+    with pytest.raises(ContractError) as caught:
+        acquire_release(
+            config_path,
+            2024,
+            output_dir,
+            force_redownload=True,
+            session=FakeSession(FakeResponse([b"wrong,header\n"])),
+        )
+
+    assert caught.value.code is ErrorCode.INVALID_FILE_SIGNATURE
+    assert destination.read_bytes() == payload
+    assert (output_dir / "manifest.json").read_bytes() == manifest_before
+    assert not list(output_dir.glob("*.part"))

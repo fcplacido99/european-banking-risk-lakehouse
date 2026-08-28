@@ -1,5 +1,6 @@
-"""Stream official source responses to temporary local files."""
+"""Acquire official source artifacts safely and idempotently."""
 
+from datetime import UTC, datetime
 from dataclasses import dataclass
 import hashlib
 import os
@@ -13,11 +14,16 @@ import csv
 
 from eba_lakehouse.contracts import (
     ContractError,
+    AcquisitionResult,
     DownloadedArtifact,
     ErrorCode,
+    ManifestRecord,
+    ManifestStatus,
     SourceArtifactContract,
     SourceFileType,
 )
+from eba_lakehouse.manifest import read_manifest, write_manifest
+from eba_lakehouse.source_config import load_source_contracts
 
 
 CONNECT_TIMEOUT_SECONDS = 10
@@ -414,6 +420,7 @@ def download_artifact(
     output_dir: Path,
     *,
     session: _HttpSession | None = None,
+    replace_existing: bool = False,
 ) -> DownloadedArtifact:
     """Download, validate and atomically publish one artifact."""
 
@@ -421,8 +428,7 @@ def download_artifact(
 
     final_path = output_dir / contract.source_file
 
-    # Week 4 will replace this with same-hash idempotency.
-    if final_path.exists():
+    if final_path.exists() and not replace_existing:
         raise FileExistsError(
             f"Destination already exists: {final_path}"
         )
@@ -442,7 +448,7 @@ def download_artifact(
         )
 
         # Check again immediately before publication.
-        if final_path.exists():
+        if final_path.exists() and not replace_existing:
             raise FileExistsError(
                 f"Destination already exists: {final_path}"
             )
@@ -462,3 +468,115 @@ def download_artifact(
     finally:
         if staged is not None:
             _remove_if_present(staged.path)
+
+
+def calculate_file_identity(path: Path) -> tuple[int, str]:
+    """Return the byte length and streaming SHA-256 of a local file."""
+
+    digest = hashlib.sha256()
+    content_length = 0
+    with path.open("rb") as source_file:
+        while chunk := source_file.read(DOWNLOAD_CHUNK_BYTES):
+            digest.update(chunk)
+            content_length += len(chunk)
+    return content_length, digest.hexdigest()
+
+
+def _existing_artifact(
+    contract: SourceArtifactContract,
+    final_path: Path,
+) -> DownloadedArtifact:
+    content_length, sha256 = calculate_file_identity(final_path)
+    if sha256.lower() != contract.expected_sha256.lower():
+        raise _download_error(
+            ErrorCode.SOURCE_CONTENT_CHANGED,
+            contract,
+            "existing local SHA-256 does not match the locked source contract",
+        )
+
+    _validate_staged_download(
+        _StagedDownload(
+            path=final_path,
+            content_length=content_length,
+            sha256=sha256,
+        ),
+        contract,
+    )
+    return DownloadedArtifact(
+        source_file=contract.source_file,
+        local_path=final_path,
+        content_length=content_length,
+        sha256=sha256,
+    )
+
+
+def _record_matches(
+    record: ManifestRecord,
+    contract: SourceArtifactContract,
+    artifact: DownloadedArtifact,
+) -> bool:
+    return (
+        record.release_year == contract.release_year
+        and record.source_url == contract.source_url
+        and record.source_file == contract.source_file
+        and record.content_length == artifact.content_length
+        and record.sha256.lower() == artifact.sha256.lower()
+        and record.error_code is None
+    )
+
+
+def acquire_release(
+    config_path: Path,
+    release_year: int,
+    output_dir: Path,
+    *,
+    force_redownload: bool = False,
+    session: _HttpSession | None = None,
+) -> tuple[AcquisitionResult, ...]:
+    """Acquire every configured artifact and publish one release manifest."""
+
+    contracts = load_source_contracts(config_path, release_year)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / "manifest.json"
+    prior_records = (
+        read_manifest(manifest_path, release_year) if manifest_path.exists() else ()
+    )
+    prior_by_name = {record.source_file: record for record in prior_records}
+
+    results: list[AcquisitionResult] = []
+    records: list[ManifestRecord] = []
+    for contract in contracts:
+        final_path = output_dir / contract.source_file
+        if final_path.exists() and not force_redownload:
+            artifact = _existing_artifact(contract, final_path)
+            status = ManifestStatus.UNCHANGED
+        else:
+            artifact = download_artifact(
+                contract,
+                output_dir,
+                session=session,
+                replace_existing=force_redownload,
+            )
+            status = ManifestStatus.DOWNLOADED
+
+        result = AcquisitionResult(artifact=artifact, status=status)
+        results.append(result)
+
+        prior = prior_by_name.get(contract.source_file)
+        if prior is not None and _record_matches(prior, contract, artifact):
+            records.append(prior)
+        else:
+            records.append(
+                ManifestRecord(
+                    release_year=release_year,
+                    source_url=contract.source_url,
+                    source_file=contract.source_file,
+                    content_length=artifact.content_length,
+                    sha256=artifact.sha256,
+                    retrieved_at_utc=datetime.now(UTC),
+                    status=status,
+                )
+            )
+
+    write_manifest(manifest_path, release_year, records)
+    return tuple(results)
