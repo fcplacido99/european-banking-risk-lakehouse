@@ -110,7 +110,22 @@ command-line acquisition path without a live EBA dependency in automated tests.
 | W4.2 | **FINISHED** | 2h | Implement existing-file validation, forced recovery, and release idempotency. | Python; requests; filesystem APIs; pytest | Forty-two focused acquisition/manifest tests and all 105 project tests passed; same-hash artifacts avoid HTTP, changed content raises `SOURCE_CONTENT_CHANGED`, forced recovery replaces only validated bytes, failure preserves the prior artifact and manifest, and temporary files are cleaned. |
 | W4.3 | **FINISHED** | 1.5h | Add the acquisition command-line interface and output-path safeguards. | Python; argparse; pytest | Fourteen CLI tests and all 119 project tests passed; the documented command resolves project configuration, accepts strict Boolean force values, rejects protected/file destinations, prints artifact outcomes, and returns exit code 2 for controlled failures. |
 | W4.4 | **FINISHED** | 1.5h | Prove two-run acquisition idempotency with five offline artifacts. | pytest; mocked HTTP boundary | The offline five-artifact integration test and all 120 project tests passed; the first run publishes five validated artifacts and one manifest, the second performs zero HTTP calls with byte-identical files, and changed local content preserves the manifest and unrelated artifacts. |
-| W4.5 | **NOT STARTED** | 0.5h | Audit, record, and publish Week 4 evidence. | pytest; pip; Git; GitHub | Complete gates pass; repository audit is safe; evidence is committed and pushed with a clean synchronized working tree. |
+| W4.5 | **FINISHED** | 0.5h | Audit, record, and publish Week 4 evidence. | pytest; pip; Git; GitHub | Python 3.12.10, dependency checks, and all 120 project tests passed; no raw source, manifest, partial download, secret, virtual environment, cache, or generated output is tracked; completion evidence was committed and published. |
+
+### Week 4 evidence
+
+- Deterministic acquisition manifest: commit `488dbbc`
+- Existing-file and forced-recovery behavior: commit `0bb8287`
+- Acquisition command-line interface: commit `51a9bd4`
+- Five-artifact rerun integration proof: commit `7e04e8a`
+- Runtime: Python 3.12.10
+- Dependency result: `pip check` reported no broken requirements
+- Automated tests: 120 passed
+- Manifest behavior: strictly validated, canonically ordered, atomically published, and byte-stable on unchanged reruns
+- Idempotency behavior: matching artifacts make no HTTP request; changed local content raises `SOURCE_CONTENT_CHANGED`
+- Forced recovery: the prior artifact and manifest remain unchanged until replacement content passes every contract
+- HTTP boundary: fully mocked; automated tests require no live EBA access
+- Repository audit: no raw EBA source, generated manifest, `.venv`, secret, cache, local path, or `.part` file tracked
 
 
 ## Milestone calendar
@@ -122,7 +137,7 @@ table provides the repository-visible delivery sequence.
 |---:|---|---|
 | 2 | Locally testable Python package foundation | **FINISHED** |
 | 3 | Safe streamed acquisition and validation | **FINISHED** |
-| 4 | Manifests, CLI, and acquisition idempotency | **NOT STARTED** |
+| 4 | Manifests, CLI, and acquisition idempotency | **FINISHED** |
 | 5 | Institution and dimension workbook parsing | **NOT STARTED** |
 | 6 | Metric, bank, and dimension bridges | **NOT STARTED** |
 | 7 | Databricks Free Edition setup and verified landing | **NOT STARTED** |
